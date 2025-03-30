@@ -2,36 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FoodMon Frenzy + WAX Login</title>
-  <script src="https://cdn.jsdelivr.net/npm/@waxio/waxjs@1.7.1/dist/waxjs.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FoodMon Frenzy</title>
   <link href="https://fonts.googleapis.com/css2?family=Chewy&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@waxio/waxjs@1.0.3/dist/waxjs.min.js"></script>
   <style>
     html, body {
       margin: 0;
       font-family: 'Chewy', cursive;
-      background: #121212;
-      color: #fffbea;
+      background-color: #121212;
+      color: #fff;
       overflow-x: hidden;
     }
-    body {
-      background: url('https://www.transparenttextures.com/patterns/food.png') repeat;
-      background-size: 400px;
-    }
-    #login-btn {
-      background: #ffe083;
-      border: none;
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      font-family: 'Chewy', cursive;
-      cursor: pointer;
-      margin-bottom: 1rem;
-    }
-    header, main, footer {
-      text-align: center;
-      z-index: 2;
-      position: relative;
-    }
+
     canvas#gameCanvas {
       position: fixed;
       top: 0;
@@ -39,92 +22,108 @@
       z-index: 1;
       pointer-events: none;
     }
-    #gameScore {
+
+    header, main, footer {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+    }
+
+    header {
+      padding: 2rem;
+      background-color: rgba(255, 184, 77, 0.9);
+      box-shadow: 0 0 12px #ffbf00aa;
+    }
+
+    header img {
+      width: 100px;
+    }
+
+    .download-btn, #loginBtn {
+      background: #fcbf49;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1rem;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px;
+      box-shadow: 0 0 10px #ffcb6b;
+    }
+
+    #gameScore, #userWallet {
       position: fixed;
       top: 1rem;
       right: 1rem;
-      z-index: 3;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 0.5rem 1rem;
+      border-radius: 12px;
       font-size: 1.2rem;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 0.6rem 1rem;
-      border-radius: 12px;
       color: #ffd84f;
+      z-index: 3;
     }
-    .leaderboard-section {
-      max-width: 700px;
+
+    #userWallet {
+      top: auto;
+      bottom: 1rem;
+      right: 1rem;
+    }
+
+    #leaderboard-list {
+      max-width: 600px;
       margin: 2rem auto;
-      background-color: rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 1rem;
-    }
-    ol {
       list-style: none;
       padding: 0;
-      margin: 1rem 0;
-    }
-    li {
-      padding: 0.5rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
   <div id="gameScore">🍽️ Score: 0</div>
+  <div id="userWallet">🔐 Not logged in <button id="loginBtn">Login with WAX</button></div>
 
   <header>
-    <img src="https://i.imgur.com/Xveg60R.png" alt="FoodMonsters Logo" style="width: 140px; margin-bottom: 1rem;">
-    <h1>🍽️ FoodMon Frenzy + WAX Login 🍟</h1>
-    <p>Catch food, dodge fries. Stay hungry!</p>
-    <button id="login-btn">🔐 Login with WAX</button>
-    <div id="user-info"></div>
+    <img src="https://i.imgur.com/Xveg60R.png" alt="FoodMon Logo">
+    <h1>🍟 FoodMon Frenzy</h1>
+    <p>Catch food, dodge fries. Login to save scores!</p>
   </header>
 
   <main>
-    <section class="leaderboard-section">
-      <h2>🎮 Game High Scores</h2>
-      <ol id="game-leaderboard"><li>No scores yet...</li></ol>
+    <section>
+      <h2>Leaderboard</h2>
+      <ol id="leaderboard-list">
+        <li>Login to start saving scores!</li>
+      </ol>
     </section>
   </main>
 
   <footer>
-    <p>Cooked up with flavor by The Online Inn 🧁</p>
-    <a href="https://discord.gg/cEkJyyK" target="_blank">Join the Feast 🍟</a>
+    <p>Cooked up by The Online Inn</p>
   </footer>
 
   <script>
     const wax = new waxjs.WaxJS({ rpcEndpoint: 'https://wax.greymass.com' });
+    const loginBtn = document.getElementById("loginBtn");
+    const userWallet = document.getElementById("userWallet");
     let currentUser = null;
-    let gameScores = JSON.parse(localStorage.getItem('foodmon_scores')) || {};
 
-    document.getElementById("login-btn").onclick = async () => {
+    loginBtn.onclick = async () => {
       try {
-        const user = await wax.login();
-        currentUser = user;
-        document.getElementById("user-info").innerText = `👋 Welcome, ${currentUser}`;
-        updateGameLeaderboard();
+        const userAccount = await wax.login();
+        currentUser = userAccount;
+        userWallet.innerHTML = `✅ Logged in as ${userAccount}`;
       } catch (e) {
-        console.error("Login error:", e);
-        alert("Login failed or was cancelled.");
+        alert("Login failed: " + e.message);
       }
     };
 
-    function updateGameLeaderboard() {
-      const entries = Object.entries(gameScores).sort((a, b) => b[1] - a[1]);
-      const list = document.getElementById("game-leaderboard");
-      list.innerHTML = '';
-      entries.forEach(([name, score], i) => {
-        list.innerHTML += `<li>#${i + 1} - ${name}: ${score}</li>`;
-      });
-    }
-
+    // Game Logic
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    let width, height, score = 0;
-    let plateX = 300;
-    const plateWidth = 60;
+    let width, height, score = 0, plateX = 300;
+    const plateWidth = 60, foodDrops = [], fryDrops = [];
     const foodEmojis = ["🍕", "🍔", "🍩", "🌭", "🍟"];
-    const foodDrops = [], fryDrops = [];
     const fryImg = new Image(); fryImg.src = "https://i.imgur.com/Xveg60R.png";
 
     function resizeCanvas() {
@@ -133,22 +132,15 @@
       canvas.width = width;
       canvas.height = height;
     }
+
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    document.addEventListener("keydown", e => {
-      if (e.key === "ArrowLeft") plateX -= 40;
-      if (e.key === "ArrowRight") plateX += 40;
-    });
-    document.addEventListener("mousemove", e => {
-      plateX = e.clientX - plateWidth / 2;
-    });
+    document.addEventListener("mousemove", e => plateX = e.clientX - plateWidth / 2);
 
-    function spawnDrops() {
-      if (Math.random() < 0.08)
-        foodDrops.push({ emoji: foodEmojis[Math.floor(Math.random() * foodEmojis.length)], x: Math.random() * (width - 40), y: -30, speed: 2 + score * 0.05 });
-      if (Math.random() < 0.02 + score * 0.0015)
-        fryDrops.push({ x: Math.random() * (width - 40), y: -30, speed: 2 + score * 0.1 });
+    function spawnItems() {
+      if (Math.random() < 0.1) foodDrops.push({ emoji: foodEmojis[Math.floor(Math.random() * foodEmojis.length)], x: Math.random() * (width - 40), y: -30, speed: 2 + score * 0.05 });
+      if (Math.random() < 0.03 + score * 0.0015) fryDrops.push({ x: Math.random() * (width - 40), y: -30, speed: 2 + score * 0.1 });
     }
 
     function drawFood() {
@@ -162,7 +154,10 @@
           foodDrops.splice(i, 1);
           document.getElementById("gameScore").innerText = `🍽️ Score: ${score}`;
           i--;
-        } else if (f.y > height) { foodDrops.splice(i, 1); i--; }
+        } else if (f.y > height) {
+          foodDrops.splice(i, 1);
+          i--;
+        }
       }
     }
 
@@ -172,16 +167,12 @@
         ctx.drawImage(fryImg, f.x, f.y, 40, 40);
         f.y += f.speed;
         if (f.y > height - 60 && f.x > plateX && f.x < plateX + plateWidth) {
-          if (currentUser && (!gameScores[currentUser] || score > gameScores[currentUser])) {
-            gameScores[currentUser] = score;
-            localStorage.setItem('foodmon_scores', JSON.stringify(gameScores));
-            updateGameLeaderboard();
-          }
-          score = 0;
-          foodDrops.length = 0;
-          fryDrops.length = 0;
-          document.getElementById("gameScore").innerText = `🍽️ Score: 0`;
-        } else if (f.y > height) { fryDrops.splice(i, 1); i--; }
+          saveScore();
+          resetGame();
+        } else if (f.y > height) {
+          fryDrops.splice(i, 1);
+          i--;
+        }
       }
     }
 
@@ -192,15 +183,44 @@
 
     function gameLoop() {
       ctx.clearRect(0, 0, width, height);
-      spawnDrops();
+      spawnItems();
       drawFood();
       drawFries();
       drawPlate();
       requestAnimationFrame(gameLoop);
     }
 
+    function resetGame() {
+      alert(`You got hit! Final score: ${score}`);
+      score = 0;
+      foodDrops.length = 0;
+      fryDrops.length = 0;
+      document.getElementById("gameScore").innerText = `🍽️ Score: 0`;
+    }
+
+    function saveScore() {
+      if (!currentUser) return;
+      let scores = JSON.parse(localStorage.getItem("foodmon-scores") || "[]");
+      scores.push({ name: currentUser, score });
+      scores = scores.sort((a, b) => b.score - a.score).slice(0, 10);
+      localStorage.setItem("foodmon-scores", JSON.stringify(scores));
+      updateLeaderboard(scores);
+    }
+
+    function updateLeaderboard(scores) {
+      const list = document.getElementById("leaderboard-list");
+      list.innerHTML = "";
+      scores.forEach((entry, i) => {
+        const li = document.createElement("li");
+        li.textContent = `#${i + 1} - ${entry.name}: ${entry.score}`;
+        list.appendChild(li);
+      });
+    }
+
+    updateLeaderboard(JSON.parse(localStorage.getItem("foodmon-scores") || "[]"));
     gameLoop();
   </script>
 </body>
 </html>
+
 
