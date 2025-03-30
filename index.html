@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <!-- Adjusted CSP to allow unsafe-eval for waxjs -->
+  <!-- Adjusted CSP to allow unsafe-eval for waxjs and other resources -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net; connect-src 'self' https://wax.pink.gg https://wax.greymass.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://i.imgur.com">
   <title>FoodMon Frenzy</title>
   <link href="https://fonts.googleapis.com/css2?family=Chewy&display=swap" rel="stylesheet">
@@ -115,6 +115,167 @@
       console.log('WAX initialized successfully');
     } catch (e) {
       console.error('WAX initialization failed:', e);
-      document.getElementById('userWallet').innerHTML = '...
+      document.getElementById('userWallet').innerHTML = '❌ Wallet unavailable';
+    }
+
+    // Wallet elements
+    const userWallet = document.getElementById("userWallet");
+    let currentUser = null;
+
+    // Check if waxjs loaded
+    window.addEventListener('load', () => {
+      if (typeof waxjs === 'undefined') {
+        console.error('waxjs failed to load');
+        userWallet.innerHTML = '❌ Wallet library failed to load';
+        document.getElementById('loginBtn').disabled = true;
+      } else {
+        console.log('waxjs loaded successfully');
+      }
+    });
+
+    // Login function
+    async function handleLogin() {
+      try {
+        console.log('Attempting WAX login...');
+        const userAccount = await wax.login();
+        console.log('Login successful, account:', userAccount);
+        currentUser = userAccount;
+        userWallet.innerHTML = `✅ Logged in as ${userAccount} <button id="logoutBtn">Logout</button>`;
+        
+        // Add logout handler
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+          currentUser = null;
+          userWallet.innerHTML = `🔐 Not logged in <button id="loginBtn">Login with WAX</button>`;
+          document.getElementById('loginBtn').addEventListener('click', handleLogin);
+        });
+      } catch (e) {
+        console.error('Login error:', e);
+        alert(`Login failed: ${e.message}. Try refreshing the page or using a different browser.`);
+      }
+    }
+
+    // Initial login button handler
+    document.getElementById('loginBtn').addEventListener('click', handleLogin);
+
+    // Game Logic
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    let width, height, score = 0, plateX = 300;
+    const plateWidth = 60, foodDrops = [], fryDrops = [];
+    const foodEmojis = ["🍕", "🍔", "🍩", "🌭", "🍟"];
+    const fryImg = new Image(); 
+    fryImg.src = "https://i.imgur.com/Xveg60R.png";
+
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    document.addEventListener("mousemove", e => plateX = e.clientX - plateWidth / 2);
+
+    function spawnItems() {
+      if (Math.random() < 0.1) foodDrops.push({ 
+        emoji: foodEmojis[Math.floor(Math.random() * foodEmojis.length)], 
+        x: Math.random() * (width - 40), 
+        y: -30, 
+        speed: 2 + score * 0.05 
+      });
+      if (Math.random() < 0.03 + score * 0.0015) fryDrops.push({ 
+        x: Math.random() * (width - 40), 
+        y: -30, 
+        speed: 2 + score * 0.1 
+      });
+    }
+
+    function drawFood() {
+      for (let i = 0; i < foodDrops.length; i++) {
+        const f = foodDrops[i];
+        ctx.font = "32px serif";
+        ctx.fillText(f.emoji, f.x, f.y);
+        f.y += f.speed;
+        if (f.y > height - 60 && f.x > plateX && f.x < plateX + plateWidth) {
+          score++;
+          foodDrops.splice(i, 1);
+          document.getElementById("gameScore").innerText = `🍽️ Score: ${score}`;
+          i--;
+        } else if (f.y > height) {
+          foodDrops.splice(i, 1);
+          i--;
+        }
+      }
+    }
+
+    function drawFries() {
+      for (let i = 0; i < fryDrops.length; i++) {
+        const f = fryDrops[i];
+        ctx.drawImage(fryImg, f.x, f.y, 40, 40);
+        f.y += f.speed;
+        if (f.y > height - 60 && f.x > plateX && f.x < plateX + plateWidth) {
+          saveScore();
+          resetGame();
+        } else if (f.y > height) {
+          fryDrops.splice(i, 1);
+          i--;
+        }
+      }
+    }
+
+    function drawPlate() {
+      ctx.font = "60px serif";
+      ctx.fillText("🍽️", plateX, height - 10);
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, width, height);
+      spawnItems();
+      drawFood();
+      drawFries();
+      drawPlate();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function resetGame() {
+      alert(`You got hit! Final score: ${score}`);
+      score = 0;
+      foodDrops.length = 0;
+      fryDrops.length = 0;
+      document.getElementById("gameScore").innerText = `🍽️ Score: 0`;
+    }
+
+    function saveScore() {
+      if (!currentUser) return;
+      let scores = JSON.parse(localStorage.getItem("foodmon-scores") || "[]");
+      scores.push({ name: currentUser, score });
+      scores = scores.sort((a, b) => b.score - a.score).slice(0, 10);
+      localStorage.setItem("foodmon-scores", JSON.stringify(scores));
+      updateLeaderboard(scores);
+    }
+
+    function updateLeaderboard(scores) {
+      const list = document.getElementById("leaderboard-list");
+      list.innerHTML = "";
+      scores.forEach((entry, i) => {
+        const li = document.createElement("li");
+        li.textContent = `#${i + 1} - ${entry.name}: ${entry.score}`;
+        list.appendChild(li);
+      });
+    }
+
+    // Initialize game
+    try {
+      updateLeaderboard(JSON.parse(localStorage.getItem("foodmon-scores") || "[]"));
+      gameLoop();
+    } catch (e) {
+      console.error('Game initialization failed:', e);
+      alert('Game failed to start. Please refresh the page.');
+    }
+  </script>
+</body>
+</html>
 
 
