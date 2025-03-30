@@ -135,20 +135,22 @@
   </footer>
 
   <script>
-    const wax = new waxjs.WaxJS();
+    const wax = new waxjs.WaxJS({ rpcEndpoint: 'https://wax.greymass.com' });
     let currentUser = null;
     let gameScores = JSON.parse(localStorage.getItem('foodmon_scores')) || {};
 
     document.getElementById("login-btn").onclick = async () => {
-      try {
-        const user = await wax.login();
-        currentUser = user[0];
-        document.getElementById("user-info").innerText = `👋 Welcome, ${currentUser}`;
-        updateGameLeaderboard();
-      } catch (e) {
-        alert("Login failed.");
-      }
-    };
+  try {
+    const user = await wax.login();
+    currentUser = user;
+    document.getElementById("user-info").innerText = `👋 Welcome, ${currentUser}`;
+    updateGameLeaderboard();
+  } catch (e) {
+    console.error("Login error:", e);
+    alert("Login failed or was cancelled.");
+  }
+};
+
 
     function updateGameLeaderboard() {
       const entries = Object.entries(gameScores).sort((a, b) => b[1] - a[1]);
